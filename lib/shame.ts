@@ -1,11 +1,33 @@
 const SHEET_ID = "180CqEujgBjJPjP9eU8C--xMj-VTBSrRUrM_98-S0gjo";
-const OFFLINE_THRESHOLD = 48;
+const OFFLINE_THRESHOLD = 72;
 const SKIP_RN = ["not running", "device removed"];
+
+// ── Grouping rules: agar client name mein ye prefix/substring ho → rename ──
+const GROUP_RULES: { match: string; group: string }[] = [
+  { match: "CF-",       group: "CityFlo"   },
+  { match: "NGI_",      group: "Narayana"  },
+  { match: "Euro Cars-",group: "Euro Cars" },
+  { match: "Shoffr-",   group: "Shoffr"    },
+];
+
+function resolveClientName(raw: string): string {
+  for (const rule of GROUP_RULES) {
+    if (raw.includes(rule.match)) return rule.group;
+  }
+  return raw;
+}
+
+export interface SubClient {
+  name: string;
+  offline: number;
+  total: number;
+}
 
 export interface ClientStat {
   name: string;
   offline: number;
   total: number;
+  subClients: SubClient[]; // original sub-client names with their counts
 }
 
 export interface ShameData {
@@ -83,20 +105,25 @@ export async function getShameData(): Promise<ShameData> {
   if (vC === -1) throw new Error("'Vehicle Number' column not found. Headers: " + H.join(", "));
   if (oC === -1) throw new Error("'Offline Since' column not found. Headers: " + H.join(", "));
 
-  const clientOffline: Record<string, number> = {};
-  const clientTotal: Record<string, number> = {};
+  // grouped[groupName][rawName] = { offline, total }
+  const grouped: Record<string, Record<string, { offline: number; total: number }>> = {};
   let grandOffline = 0;
   let grandTotal = 0;
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const client = (row[cC] || "").trim();
-    const vehicle = (row[vC] || "").trim();
-    if (!client || !vehicle) continue;
+    const rawClient = (row[cC] || "").trim();
+    const vehicle   = (row[vC] || "").trim();
+    if (!rawClient || !vehicle) continue;
+
+    const groupName = resolveClientName(rawClient);
 
     grandTotal++;
-    clientTotal[client] = (clientTotal[client] || 0) + 1;
+    if (!grouped[groupName]) grouped[groupName] = {};
+    if (!grouped[groupName][rawClient]) grouped[groupName][rawClient] = { offline: 0, total: 0 };
+    grouped[groupName][rawClient].total++;
 
+    // Skip excluded R/N values
     if (rC !== -1) {
       const rnVal = (row[rC] || "").trim().toLowerCase();
       if (SKIP_RN.some((s) => rnVal.includes(s))) continue;
@@ -106,17 +133,23 @@ export async function getShameData(): Promise<ShameData> {
     if (isNaN(hrs) || hrs < OFFLINE_THRESHOLD) continue;
 
     grandOffline++;
-    clientOffline[client] = (clientOffline[client] || 0) + 1;
+    grouped[groupName][rawClient].offline++;
   }
 
-  const clients: ClientStat[] = Object.entries(clientOffline)
-    .map(([name, offline]) => ({ name, offline, total: clientTotal[name] || 0 }))
+  const clients: ClientStat[] = Object.entries(grouped)
+    .map(([groupName, subMap]) => {
+      const subClients: SubClient[] = Object.entries(subMap)
+        .map(([name, s]) => ({ name, offline: s.offline, total: s.total }))
+        .filter((s) => s.offline > 0)
+        .sort((a, b) => b.offline - a.offline);
+
+      const offline = subClients.reduce((sum, s) => sum + s.offline, 0);
+      const total   = Object.values(subMap).reduce((sum, s) => sum + s.total, 0);
+
+      return { name: groupName, offline, total, subClients };
+    })
+    .filter((c) => c.offline > 0)
     .sort((a, b) => b.offline - a.offline);
 
-  return {
-    clients,
-    grandOffline,
-    grandTotal,
-    lastUpdated: new Date().toISOString(),
-  };
+  return { clients, grandOffline, grandTotal, lastUpdated: new Date().toISOString() };
 }
