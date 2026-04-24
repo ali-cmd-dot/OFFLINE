@@ -8,6 +8,174 @@ function offlineColor(pct: number): string {
   return "#4ade80";
 }
 
+// ── Sub-clients Modal ────────────────────────────────────────────────────────
+function SubClientModal({ client, onClose }: { client: ClientStat; onClose: () => void }) {
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, [onClose]);
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(5,12,5,0.88)",
+        backdropFilter: "blur(16px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "20px",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: "#0e160e",
+        border: "1px solid rgba(248,113,113,0.2)",
+        borderRadius: "20px",
+        width: "100%", maxWidth: "520px",
+        maxHeight: "85vh",
+        display: "flex", flexDirection: "column",
+        boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
+        overflow: "hidden",
+      }}>
+        {/* Modal Header */}
+        <div style={{
+          padding: "20px 24px 16px",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{
+              fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase",
+              color: "rgba(248,113,113,0.55)", fontFamily: "'Inter', sans-serif",
+              fontWeight: 600, marginBottom: "3px",
+            }}>
+              Sub-Clients · 72+ hrs offline
+            </div>
+            <h2 style={{
+              fontFamily: "'Bricolage Grotesque', sans-serif",
+              fontWeight: 800, fontSize: "20px", color: "#f0f7f0", margin: 0,
+            }}>
+              {client.name}
+            </h2>
+            <div style={{
+              fontSize: "12px", color: "rgba(255,255,255,0.3)",
+              fontFamily: "'Inter', sans-serif", marginTop: "3px",
+            }}>
+              <span style={{ color: "#f87171", fontWeight: 700 }}>{client.offline}</span>
+              {" "}offline &nbsp;/&nbsp; {client.total} total vehicles
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(255,255,255,0.06)", border: "none",
+              borderRadius: "8px", width: "30px", height: "30px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "rgba(255,255,255,0.4)", flexShrink: 0,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Sub-client list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 24px 20px" }}>
+          {client.subClients.length === 0 ? (
+            <div style={{
+              textAlign: "center", padding: "40px",
+              color: "rgba(255,255,255,0.2)",
+              fontFamily: "'Inter', sans-serif", fontSize: "13px",
+            }}>
+              No sub-clients with offline vehicles
+            </div>
+          ) : (
+            <>
+              {/* Column headers */}
+              <div style={{
+                display: "flex", justifyContent: "space-between",
+                padding: "0 14px 8px",
+                fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase",
+                color: "rgba(255,255,255,0.22)", fontFamily: "'Inter', sans-serif",
+              }}>
+                <span>Sub-Client</span>
+                <span>Offline / Total</span>
+              </div>
+
+              {client.subClients.map((sub, i) => {
+                const pct = sub.total > 0 ? sub.offline / sub.total : 0;
+                const clr = offlineColor(pct);
+                return (
+                  <div
+                    key={sub.name}
+                    className="card-anim"
+                    style={{
+                      animationDelay: `${i * 0.04}s`,
+                      display: "flex", alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.05)",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {/* left: dot + name */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                      <div style={{
+                        width: "7px", height: "7px", borderRadius: "50%",
+                        background: clr, flexShrink: 0,
+                        boxShadow: `0 0 6px ${clr}80`,
+                      }} />
+                      <span style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: "13px", fontWeight: 500, color: "#f0f7f0",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>
+                        {sub.name}
+                      </span>
+                    </div>
+
+                    {/* right: bar + count */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+                      <div style={{
+                        width: "72px", height: "3px",
+                        background: "rgba(255,255,255,0.07)", borderRadius: "2px", overflow: "hidden",
+                      }}>
+                        <div style={{
+                          height: "100%",
+                          width: `${Math.min(100, (sub.offline / Math.max(sub.total, 1)) * 100)}%`,
+                          background: clr, transition: "width 0.8s ease-out",
+                        }} />
+                      </div>
+                      <span style={{
+                        fontFamily: "'Bricolage Grotesque', sans-serif",
+                        fontWeight: 800, fontSize: "14px", color: clr, minWidth: "28px", textAlign: "right",
+                      }}>
+                        {sub.offline}
+                      </span>
+                      <span style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: "11px", color: "rgba(255,255,255,0.25)", minWidth: "40px",
+                      }}>
+                        / {sub.total}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Grand Total Box ──────────────────────────────────────────────────────────
 function GrandBox({ offline, total }: { offline: number; total: number }) {
   return (
     <div className="card-anim shame-box shame-box--grand" style={{ animationDelay: "0s" }}>
@@ -18,20 +186,44 @@ function GrandBox({ offline, total }: { offline: number; total: number }) {
   );
 }
 
-function ClientBox({ client, index }: { client: ClientStat; index: number }) {
+// ── Client Box ───────────────────────────────────────────────────────────────
+function ClientBox({
+  client, index, onClick,
+}: {
+  client: ClientStat; index: number; onClick: () => void;
+}) {
   const pct = client.total > 0 ? client.offline / client.total : 0;
   const clr = offlineColor(pct);
+  const hasSubClients = client.subClients.length > 1;
+
   return (
     <div
       className="card-anim shame-box"
-      style={{ animationDelay: `${index * 0.05}s` }}
-      title={client.name}
+      style={{ animationDelay: `${index * 0.05}s`, cursor: hasSubClients ? "pointer" : "default" }}
+      title={hasSubClients ? `Click to see ${client.subClients.length} sub-clients` : client.name}
+      onClick={hasSubClients ? onClick : undefined}
     >
+      {/* top accent */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, height: "2px",
         background: `linear-gradient(90deg, transparent, ${clr}60, transparent)`,
         borderRadius: "12px 12px 0 0",
       }} />
+
+      {/* sub-client indicator */}
+      {hasSubClients && (
+        <div style={{
+          position: "absolute", top: "10px", right: "10px",
+          background: `${clr}18`, border: `1px solid ${clr}35`,
+          borderRadius: "5px", padding: "1px 6px",
+          fontSize: "9px", fontWeight: 700,
+          color: clr, fontFamily: "'Inter', sans-serif",
+          letterSpacing: "0.05em",
+        }}>
+          {client.subClients.length}
+        </div>
+      )}
+
       <div className="shame-box__label">{client.name}</div>
       <div className="shame-box__count" style={{ color: clr }}>{client.offline}</div>
       <div className="shame-box__total">{client.total}</div>
@@ -39,6 +231,7 @@ function ClientBox({ client, index }: { client: ClientStat; index: number }) {
   );
 }
 
+// ── Skeleton ─────────────────────────────────────────────────────────────────
 function Skeleton() {
   return (
     <div className="shame-grid">
@@ -49,13 +242,15 @@ function Skeleton() {
   );
 }
 
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function WallOfShame() {
-  const [data, setData] = useState<ShameData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [updated, setUpdated] = useState("");
-  const [search, setSearch] = useState("");
+  const [data, setData]               = useState<ShameData | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const [updated, setUpdated]         = useState("");
+  const [search, setSearch]           = useState("");
+  const [selected, setSelected]       = useState<ClientStat | null>(null);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -135,15 +330,16 @@ export default function WallOfShame() {
         {/* HERO */}
         <div style={{ padding: "36px 32px 20px" }}>
           <div style={{ fontSize: "10px", letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(248,113,113,0.6)", fontFamily: "'Inter', sans-serif", fontWeight: 600, marginBottom: "8px" }}>
-            Offline &gt; 48 Hours
+            Offline &gt; 72 Hours
           </div>
           <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: "clamp(26px, 4vw, 44px)", color: "#f0f7f0", letterSpacing: "-0.025em", lineHeight: 1.1, marginBottom: "8px" }}>
             Wall Of <span style={{ color: "#f87171", fontStyle: "italic" }}>Shame</span>
           </h1>
-          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "rgba(240,247,240,0.38)", lineHeight: 1.6, maxWidth: "440px" }}>
-            Vehicles offline for 48+ hours, grouped by client. Excludes{" "}
+          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", color: "rgba(240,247,240,0.38)", lineHeight: 1.6, maxWidth: "480px" }}>
+            Vehicles offline for 72+ hours, grouped by client. Excludes{" "}
             <span style={{ color: "rgba(255,255,255,0.55)" }}>Not Running</span> &{" "}
             <span style={{ color: "rgba(255,255,255,0.55)" }}>Device Removed</span>.
+            Click a box to see sub-clients.
           </p>
         </div>
 
@@ -196,7 +392,12 @@ export default function WallOfShame() {
             <div className="shame-grid">
               {!search && <GrandBox offline={data.grandOffline} total={data.grandTotal} />}
               {filtered.map((client, i) => (
-                <ClientBox key={client.name} client={client} index={i} />
+                <ClientBox
+                  key={client.name}
+                  client={client}
+                  index={i}
+                  onClick={() => setSelected(client)}
+                />
               ))}
               {filtered.length === 0 && search && (
                 <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px", color: "rgba(255,255,255,0.2)", fontFamily: "'Inter', sans-serif", fontSize: "14px" }}>
@@ -217,6 +418,9 @@ export default function WallOfShame() {
           </span>
         </footer>
       </div>
+
+      {/* MODAL */}
+      {selected && <SubClientModal client={selected} onClose={() => setSelected(null)} />}
 
       <style jsx global>{`
         .shame-header {
